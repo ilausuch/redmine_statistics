@@ -18,10 +18,4 @@ issues = progress.issues(project, [
 
 issues.reloadJournals(progress)
 
-print(f"Stats since {dateStr}")
-start_date = datetime.strptime(dateStr, "%Y-%m-%d")
-for d in range(10):
-    date = start_date + timedelta(days=d)
-    issues = issues.snapshot(date)
-    print(date)
-    print(issues.stats_status())
+print(issues.stats_aging())

@@ -88,6 +88,20 @@ def priority_from_text(text):
         sys.stderr.write("Invalid priority. Options immediate, urgent, high, normal, low\n")
         exit(2)
 
+def std(values, average, count):
+    if count < 2:
+        return 0
+
+    accum = 0
+    for v in values:
+        accum = accum + (v - average) * (v - average)
+
+    return accum / (count - 1)
+
+def median(values):
+    arr = sorted(values)
+    return arr[int(len(arr)/2)]
+
 class Issues:
     def __init__(self, data):
         self.data = data
@@ -126,7 +140,7 @@ class Issues:
         res.issues = arr
         return res
 
-    def stats(self):
+    def stats_status(self):
         stats = {}
 
         for status in STATUS_ALL:
@@ -141,6 +155,29 @@ class Issues:
 
         return stats
 
+    def stats_aging(self):
+        result = {}
+
+        for status in STATUS_ALL:
+            result[status] = {"count": 0, "sum": 0, "avg": 0, "values": []}
+
+        for issue in self.issues:
+            aging = issue.stats_aging()
+
+            for status in STATUS_ALL:
+                if aging[status] != 0:
+                    result[status]["sum"] = result[status]["sum"] + aging[status]
+                    result[status]["count"] = result[status]["count"] + 1
+                    result[status]["values"].append(aging[status])
+
+        for status in STATUS_ALL:
+            if result[status]["count"] >0:
+                result[status]["avg"] = result[status]["sum"] / result[status]["count"]
+                result[status]["med"] = median(result[status]["values"])
+                result[status]["std"] = std(result[status]["values"], result[status]["avg"], result[status]["count"])
+                result[status].pop("values")
+
+        return result
 
 class Issue:
     def __init__(self, data):
@@ -170,6 +207,18 @@ class Issue:
     def getData(self):
         return self.data
 
+    def createOn(self):
+        return trunc_datetime(datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ'))
+
+    def createOnFull(self):
+        return datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ')
+
+    def closedOn(self):
+        return trunc_datetime(datetime.strptime(self.data["closed_on"], '%Y-%m-%dT%H:%M:%SZ'))
+
+    def closedOnFull(self):
+        return datetime.strptime(self.data["closed_on"], '%Y-%m-%dT%H:%M:%SZ')
+
     def __str__(self):
         return json.dumps(self.data)
 
@@ -194,6 +243,9 @@ class Issue:
         else:
             return int(current.status())
 
+    def status(self):
+        return self.data["status"]["id"]
+
     def snapshot(self, date):
         res = Issue(self.data)
         res.journals = self.journals
@@ -202,6 +254,40 @@ class Issue:
         res.data["status"] = { "id" : status, "name": status_to_text(status)}
 
         return res
+
+    def stats_aging(self):
+        ret={}
+        for status in STATUS_ALL:
+            ret[status] = 0
+
+        changeList = self.getStatusChanges()
+        currentStatus = STATUS_NEW
+        startDate = self.createOnFull()
+
+        for change in changeList:
+            newStaus = change.status()
+            endDate = change.dateFull()
+            elapsed = (endDate - startDate).seconds / 3600
+
+            status = status_to_text(currentStatus)
+            if status not in ret:
+                ret[status] = elapsed
+            else:
+                ret[status] = ret[status] + elapsed
+
+            currentStatus = newStaus
+            startDate = endDate
+
+        if currentStatus != STATUS_CLOSED:
+            today = datetime.today()
+            status = status_to_text(currentStatus)
+            elapsed = (today - startDate).seconds / 3600
+            if status not in ret:
+                ret[status] = elapsed
+            else:
+                ret[status] = ret[status] + elapsed
+
+        return ret
 
     def getStatus(self):
         return self.data["status"]["id"]
@@ -224,11 +310,14 @@ class Journal:
         if "details" in self.data and len(self.data["details"]) >0:
             for i in  self.data["details"]:
                 if i["name"] == "status_id":
-                    return i["new_value"]
+                    return int(i["new_value"])
         return None
 
     def date(self):
         return trunc_datetime(datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ'))
+
+    def dateFull(self):
+        return datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ')
 
 
 class Progress:

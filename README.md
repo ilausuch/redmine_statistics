@@ -209,7 +209,7 @@ Parameters:
 * date: the date in datetime format
 
 Returns:
-*  An dict with the counts for every status, also the ids for the issues in each status
+*  A dict with the counts for every status, also the ids for the issues in each status
 
 ```
 issues = progress.issues(project, [
@@ -223,3 +223,30 @@ issues = issues.snapshot(date)
 print(issues.stats())
 ```
 
+### Get the aging for one issue
+
+```
+issue.stats_aging()
+```
+
+Returns:
+* A dict with the days consumed in every status
+
+Example:
+```
+{'new': 0.9152777777777777, 'workable': 0, 'in progress': 5.724722222222222, 'blocked': 0, 'resolved': 0, 'feedback': 1.7791666666666666, 'closed': 0, 'rejected': 0}
+```
+
+### Get the aging statistics for a group of issues
+
+```
+issues.stats_aging()
+```
+
+Returns:
+* A dict with the statistics (average, standard deviation and median) for each status
+
+Example:
+```
+{'new': {'count': 10, 'sum': 122.51416666666667, 'avg': 12.251416666666668, 'med': 15.605, 'std': 88.61125981567216}, 'workable': {'count': 1, 'sum': 18.89361111111111, 'avg': 18.89361111111111, 'med': 18.89361111111111, 'std': 0}, 'in progress': {'count': 6, 'sum': 78.69666666666667, 'avg': 13.116111111111111, 'med': 19.607777777777777, 'std': 89.7221786728395}, 'blocked': {'count': 0, 'sum': 0, 'avg': 0, 'values': []}, 'resolved': {'count': 7, 'sum': 17.932777777777776, 'avg': 2.561825396825397, 'med': 1.7372222222222222, 'std': 3.580839013815403}, 'feedback': {'count': 3, 'sum': 47.62138888888889, 'avg': 15.873796296296296, 'med': 21.188333333333333, 'std': 111.96442394547324}, 'closed': {'count': 0, 'sum': 0, 'avg': 0, 'values': []}, 'rejected': {'count': 0, 'sum': 0, 'avg': 0, 'values': []}}
+```
