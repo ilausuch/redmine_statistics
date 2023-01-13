@@ -1,18 +1,17 @@
 '''
 Example: Get the number of issues
 '''
-
-from datetime import timedelta
 import sys
 sys.path.append("..")
 
+from datetime import timedelta
 from progress import *
 from config import *
 from constants import *
 
 project = "qe-yast"
 
-progress = Progress( PROGRESS_URL, PROGRESS_KEY)
+progress = Progress(PROGRESS_URL, PROGRESS_KEY)
 
 issues = progress.issues(project, [
     progress.filter_tracker(TRACKER_ACTION),
@@ -22,5 +21,5 @@ issues = progress.issues(project, [
 
 print(f"Total issues: {issues.count()}")
 
-issues.reloadJournals(progress)
+issues.reload_journals(progress)
 print(issues.stats_aging())

@@ -30,7 +30,7 @@ DATE_UPDATED = "updated_on"
 DATE_CLOSED = "closed_on"
 DATE_START = "start_date"
 
-PRIORITIES = [ "immediate", "urgent", "high", "normal", "low" ]
+PRIORITIES = ["immediate", "urgent", "high", "normal", "low"]
 
 INCLUDE_CHILDREN = "children"
 INCLUDE_ATTACHMENTS = "attachments"
@@ -39,20 +39,26 @@ INCLUDE_CHANGESETS = "changesets"
 INCLUDE_JOURNALS = "journals"
 INCLUTE_WATCHERS = "watchers"
 INCLUDE_ALLOWED_STATUSES = "allowed_statuses"
-INCLUDE_ALL = [INCLUDE_CHILDREN, INCLUDE_ATTACHMENTS, INCLUDE_RELATIONS, INCLUDE_CHANGESETS, INCLUDE_JOURNALS, INCLUTE_WATCHERS, INCLUDE_ALLOWED_STATUSES]
+INCLUDE_ALL = [INCLUDE_CHILDREN, INCLUDE_ATTACHMENTS, INCLUDE_RELATIONS,
+               INCLUDE_CHANGESETS, INCLUDE_JOURNALS, INCLUTE_WATCHERS, INCLUDE_ALLOWED_STATUSES]
+
+EPOCH = datetime(1970, 1, 1, 0, 0, 0)
+
 
 def trunc_datetime(someDate):
     return someDate.replace(hour=0, minute=0, second=0, microsecond=0)
 
+
 def prepare_list_for_json(arr):
-    l=[]
+    l = []
     for i in arr:
-        if isinstance(i, Issue):
-            l.append(i.getData())
+        if isinstance(i, Issue) or isinstance(i, State):
+            l.append(i.get_data())
         else:
             l.append(i)
 
     return l
+
 
 def status_to_text(value):
     if value == STATUS_NEW:
@@ -74,6 +80,7 @@ def status_to_text(value):
     else:
         return "unknown"
 
+
 def priority_from_text(text):
     if text == "immediate":
         return PRIORITY_IMMEDIATE
@@ -86,8 +93,10 @@ def priority_from_text(text):
     elif text == "low":
         return PRIORITY_LOW
     else:
-        sys.stderr.write("Invalid priority. Options immediate, urgent, high, normal, low\n")
+        sys.stderr.write(
+            "Invalid priority. Options immediate, urgent, high, normal, low\n")
         exit(2)
+
 
 def _variance(values):
     if len(values) < 2:
@@ -95,20 +104,76 @@ def _variance(values):
     else:
         return variance(values)
 
+
 def _stdev(values):
     if len(values) < 2:
         return 0
     else:
         return stdev(values)
 
+
+def tree_to_plain(obj, separator=".", prefix=""):
+    res = {}
+    for field in obj.keys():
+        value = obj[field]
+        if type(value) is dict:
+            res2 = tree_to_plain(
+                value, separator, f"{prefix}{field}{separator}")
+            for field2 in res2.keys():
+                res[field2] = res2[field2]
+
+        elif type(value) in (tuple, list):
+            raise Exception("The arrays are not implemented")
+        else:
+            res[f"{prefix}{field}"] = value
+
+    return res
+
+
+def plain_to_tree(data, separator="."):
+    res = {}
+    for field in data.keys():
+        value = data[field]
+        levels = field.split(separator)
+        pointer = res
+        for i in range(0, len(levels)):
+            level = levels[i]
+            if i == len(levels) - 1:
+                pointer[level] = value
+            else:
+                if levels[i] not in pointer:
+                    pointer[level] = {}
+                pointer = pointer[level]
+
+    return res
+
+
+def datetime_to_seconds(value):
+    return (datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ') - EPOCH).total_seconds()
+
+
+def date_to_seconds(value):
+    return (datetime.strptime(value, '%Y-%m-%d') - EPOCH).total_seconds()
+
+
+def datetime_from_seconds(value):
+    return datetime.fromtimestamp(value).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def date_from_seconds(value):
+    return datetime.fromtimestamp(value).strftime('%Y-%m-%d')
+
+
 class Issues:
-    def __init__(self, data):
+    def __init__(self, data=[]):
         self.data = data
 
-        self.issues = []
         if "issues" in data:
+            self.issues = []
             for item in data["issues"]:
                 self.issues.append(Issue(item))
+        else:
+            self.issues = data
 
     def __iter__(self):
         return self.issues
@@ -125,9 +190,9 @@ class Issues:
     def limit(self):
         return self.data["limit"]
 
-    def reloadJournals(self, progress):
+    def reload_journals(self, progress):
         for issue in self.issues:
-            issue.reloadJournals(progress)
+            issue.reload_journals(progress)
 
     def snapshot(self, date):
         arr = []
@@ -147,7 +212,7 @@ class Issues:
             stats[f"{status}_ids"] = []
 
         for issue in self.issues:
-            issue_status = issue.getStatusText()
+            issue_status = issue.status_text()
             if issue_status in stats:
                 stats[issue_status] = stats[issue_status] + 1
                 stats[f"{issue_status}_ids"].append(issue.id())
@@ -165,23 +230,35 @@ class Issues:
 
             for status in STATUS_ALL:
                 if aging[status] != 0:
-                    result[status]["sum"] = result[status]["sum"] + aging[status]
+                    result[status]["sum"] = result[status]["sum"] + \
+                        aging[status]
                     result[status]["count"] = result[status]["count"] + 1
                     result[status]["values"].append(aging[status])
 
         for status in STATUS_ALL:
-            if result[status]["count"] >0:
+            if result[status]["count"] > 0:
                 result[status]["avg"] = mean(result[status]["values"])
                 result[status]["med"] = median_high(result[status]["values"])
                 result[status]["stdev"] = _stdev(result[status]["values"])
-                result[status]["variance"] = _variance(result[status]["values"])
+                result[status]["variance"] = _variance(
+                    result[status]["values"])
                 result[status].pop("values")
 
         return result
 
+    def store(self, cache):
+        for issue in self.issues:
+            issue.store(cache)
+
+    def restore(self, cache):
+        cache.restore_all_issues()
+
+
 class Issue:
     def __init__(self, data):
         self.raw = data
+        self.journals = None
+        self.state_changes = None
 
         if "issue" in data:
             self.data = data["issue"]
@@ -194,47 +271,52 @@ class Issue:
             self.journals = []
             if "journals" in self.data:
                 for journal in self.data["journals"]:
-                    self.journals.append(Journal(journal))
+                    self.journals.append(Journal(journal, self))
+            self._process_journals()
 
-    def reloadJournals(self, progress):
-        newData = progress.issue(self.data["id"], [progress.include(INCLUDE_JOURNALS)])
+            self.data["journals"] = None
+
+        self.plain_values = tree_to_plain(self.data)
+
+    def reload_journals(self, progress):
+        newData = progress.issue(
+            self.data["id"], [progress.include(INCLUDE_JOURNALS)])
         self.raw = newData.raw
         self.journals = newData.journals
+        self._process_journals()
 
     def id(self):
         return self.data["id"]
 
-    def getData(self):
-        return self.data
+    def project_id(self):
+        return self.data["project"]["id"]
 
-    def createOn(self):
+    def get_data(self):
+        data = self.data.copy()
+        data.update(
+            {"state_changes": prepare_list_for_json(self.state_changes)})
+        return data
+
+    def create_on_date(self):
         return trunc_datetime(datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ'))
 
-    def createOnFull(self):
+    def create_on(self):
         return datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ')
 
-    def closedOn(self):
+    def closed_on_date(self):
         return trunc_datetime(datetime.strptime(self.data["closed_on"], '%Y-%m-%dT%H:%M:%SZ'))
 
-    def closedOnFull(self):
+    def closed_on(self):
         return datetime.strptime(self.data["closed_on"], '%Y-%m-%dT%H:%M:%SZ')
 
     def __str__(self):
-        return json.dumps(self.data)
+        return json.dumps(self.get_data())
 
-    def getStatusChanges(self):
-        result = []
-        for journal in self.journals:
-            if journal.isStatus():
-                result.append(journal)
-
-        return result
-
-    def getStatusByDate(self, date):
+    def get_status_by_date(self, date):
         date = trunc_datetime(date)
         current = None
         for journal in self.journals:
-            if journal.isStatus():
+            if journal.is_status():
                 if date >= journal.date():
                     current = journal
 
@@ -249,24 +331,23 @@ class Issue:
     def snapshot(self, date):
         res = Issue(self.data)
         res.journals = self.journals
-        status = self.getStatusByDate(date)
+        status = self.get_status_by_date(date)
 
-        res.data["status"] = { "id" : status, "name": status_to_text(status)}
+        res.data["status"] = {"id": status, "name": status_to_text(status)}
 
         return res
 
     def stats_aging(self):
-        ret={}
+        ret = {}
         for status in STATUS_ALL:
             ret[status] = 0
 
-        changeList = self.getStatusChanges()
         currentStatus = STATUS_NEW
-        startDate = self.createOnFull()
+        startDate = self.create_on()
 
-        for change in changeList:
+        for change in self.state_changes:
             newStaus = change.status()
-            endDate = change.dateFull()
+            endDate = change.create_on_date()
             elapsed = (endDate - startDate).seconds / 3600
 
             status = status_to_text(currentStatus)
@@ -289,35 +370,85 @@ class Issue:
 
         return ret
 
-    def getStatus(self):
+    def status(self):
         return self.data["status"]["id"]
- 
-    def getStatusText(self):
+
+    def status_text(self):
         return self.data["status"]["name"]
 
+    def store(self, cache):
+        cache.store_issue(self)
+
+    def _process_journals(self):
+        if self.journals != None:
+            self.state_changes = []
+            for journal in self.journals:
+                for state in journal.data["details"]:
+                    if state["property"] == "attr" and state["name"] == "status_id":
+                        self.state_changes.append(State(state, journal, self))
+
+
 class Journal:
-    def __init__(self, data):
+    def __init__(self, data, issue):
         self.data = data
+        self.issue = issue
         self.data["notes"] = ""
 
     def __str__(self):
         return json.dumps(self.data)
 
-    def isStatus(self):
+    def id(self):
+        return self.data["id"]
+
+    def is_status(self):
         return self.status() is not None
 
     def status(self):
-        if "details" in self.data and len(self.data["details"]) >0:
-            for i in  self.data["details"]:
+        if "details" in self.data and len(self.data["details"]) > 0:
+            for i in self.data["details"]:
                 if i["name"] == "status_id":
                     return int(i["new_value"])
         return None
 
-    def date(self):
+    def created_on_date(self):
         return trunc_datetime(datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ'))
 
-    def dateFull(self):
+    def created_on(self):
+        return datetime_to_seconds(self.data["created_on"])
+
+
+class State:
+    def __init__(self, data, journal=None, issue=None):
+        self.raw = data
+        self.data = data
+        if journal != None:
+            self.data["journal_id"] = journal.id()
+            self.data["user"] = journal.data["user"]
+            self.data["created_on"] = journal.data["created_on"]
+
+        if issue != None:
+            self.data["issue_id"] = issue.id()
+            self.data["project_id"] = issue.project_id()
+
+        self.plain_values = tree_to_plain(self.data)
+
+    def get_data(self):
+        return self.data
+
+    def status(self):
+        return self.data["new_value"]
+
+    def previous_status(self):
+        return self.data["old_value"]
+
+    def create_on_date(self):
+        return trunc_datetime(datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ'))
+
+    def create_on(self):
         return datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ')
+
+    def __str__(self) -> str:
+        return json.dumps(self.get_data())
 
 
 class Progress:
@@ -329,13 +460,13 @@ class Progress:
         result = requests.get(url, headers={'X-Redmine-API-Key': self.key})
         return result.json()
 
-    def query(self, url, filters = []):
+    def query(self, url, filters=[]):
         query = f"{self.baseUrl}{url}?utf8=✓&set_filter=1"
 
         for filter in filters:
             query = query + "&" + filter
 
-        #sys.stderr.write(query)
+        # sys.stderr.write(query)
 
         return self.rawQuery(query)
 
@@ -345,7 +476,7 @@ class Progress:
             for value in values:
                 str = str + f"&v[{key}][]={value}"
             return str
-        else :
+        else:
             return self.prepare_filter(key, [values], operator)
 
     def filter_status(self, values, operator=COMPARATION_IS):
@@ -375,7 +506,7 @@ class Progress:
     def limit(self, value):
         return f"limit={value}"
 
-    def issues(self, project, filters = []):
+    def issues(self, project, filters=[]):
         return Issues(self.query(f"/projects/{project}/issues.json", filters))
 
     def issue(self, id, includes):
