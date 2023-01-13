@@ -372,6 +372,9 @@ class Progress:
         else:
             return self.include([values])
 
+    def limit(self, value):
+        return f"limit={value}"
+
     def issues(self, project, filters = []):
         return Issues(self.query(f"/projects/{project}/issues.json", filters))
 

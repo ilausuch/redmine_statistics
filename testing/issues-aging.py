@@ -13,7 +13,8 @@ progress = Progress( PROGRESS_URL, PROGRESS_KEY)
 
 issues = progress.issues(project, [
     progress.filter_tracker(TRACKER_ACTION),
-    progress.filter_date(DATE_UPDATED, 10, DATE_COMPARATION_LESS_THAN_DAYS_AGO)
+    progress.limit(1000),
+    progress.filter_date(DATE_UPDATED, 200, DATE_COMPARATION_LESS_THAN_DAYS_AGO)
 ])
 
 issues.reloadJournals(progress)
