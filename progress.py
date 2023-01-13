@@ -3,6 +3,7 @@ import json
 import sys
 from constants import *
 from datetime import datetime
+from statistics import median_high, variance, mean
 
 COMPARATION_IS = "="
 COMPARATION_IS_NOT = "!"
@@ -88,19 +89,11 @@ def priority_from_text(text):
         sys.stderr.write("Invalid priority. Options immediate, urgent, high, normal, low\n")
         exit(2)
 
-def std(values, average, count):
-    if count < 2:
+def std(values):
+    if len(values) < 2:
         return 0
-
-    accum = 0
-    for v in values:
-        accum = accum + (v - average) * (v - average)
-
-    return accum / (count - 1)
-
-def median(values):
-    arr = sorted(values)
-    return arr[int(len(arr)/2)]
+    else:
+        return variance(values)
 
 class Issues:
     def __init__(self, data):
@@ -172,9 +165,9 @@ class Issues:
 
         for status in STATUS_ALL:
             if result[status]["count"] >0:
-                result[status]["avg"] = result[status]["sum"] / result[status]["count"]
-                result[status]["med"] = median(result[status]["values"])
-                result[status]["std"] = std(result[status]["values"], result[status]["avg"], result[status]["count"])
+                result[status]["avg"] = mean(result[status]["values"])
+                result[status]["med"] = median_high(result[status]["values"])
+                result[status]["std"] = std(result[status]["values"])
                 result[status].pop("values")
 
         return result
