@@ -15,6 +15,27 @@ PROGRESS_KEY = 'XXXX'
 Configure the constants.py with your own parameters.
 These are prepared for progress.opensuse.org
 
+## Virtual environment
+
+
+### Prepare the enviroment
+```
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+```
+
+### To comeback to the enviroment if it is already created
+```
+source venv/bin/activate
+```
+
+### To update requirements
+
+```
+pip3 freeze > requirements.txt
+```
+
 ## Initialization
 
 ```
