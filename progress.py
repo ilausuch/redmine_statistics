@@ -148,6 +148,14 @@ def plain_to_tree(data, separator="."):
     return res
 
 
+def parse_datetime(value):
+    return datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
+
+
+def parse_date(value):
+    return datetime.strptime(value, '%Y-%m-%d')
+
+
 def datetime_to_seconds(value):
     return (datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ') - EPOCH).total_seconds()
 
@@ -297,17 +305,17 @@ class Issue:
             {"state_changes": prepare_list_for_json(self.state_changes)})
         return data
 
-    def create_on_date(self):
-        return trunc_datetime(datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ'))
-
     def create_on(self):
-        return datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ')
+        return parse_datetime(self.data["created_on"])
 
-    def closed_on_date(self):
-        return trunc_datetime(datetime.strptime(self.data["closed_on"], '%Y-%m-%dT%H:%M:%SZ'))
+    def create_on_date(self):
+        return trunc_datetime(self.create_on)
 
     def closed_on(self):
-        return datetime.strptime(self.data["closed_on"], '%Y-%m-%dT%H:%M:%SZ')
+        return parse_datetime(self.data["closed_on"])
+
+    def closed_on_date(self):
+        return trunc_datetime(self.closed_on())
 
     def __str__(self):
         return json.dumps(self.get_data())
@@ -410,10 +418,13 @@ class Journal:
                     return int(i["new_value"])
         return None
 
-    def created_on_date(self):
-        return trunc_datetime(datetime.strptime(self.data["created_on"], '%Y-%m-%dT%H:%M:%SZ'))
-
     def created_on(self):
+        return parse_datetime(self.data["created_on"])
+
+    def created_on_date(self):
+        return trunc_datetime(self.created_on())
+
+    def created_on_seconds(self):
         return datetime_to_seconds(self.data["created_on"])
 
 
