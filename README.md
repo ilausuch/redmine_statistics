@@ -164,7 +164,7 @@ PRIORITIES = [ "immediate", "urgent", "high", "normal", "low" ]
 ### Get an snapshot the status of a issue in a specific date
 
 ```
-issue.getStatusByDate(<date>)
+issue.get_status_by_date(<date>)
 ```
 
 Parameters:
@@ -182,7 +182,7 @@ Requisites:
 Extract from the journal the status changes
 
 ```
-issue.getStatusChanges()
+issue.state_changes
 ```
 
 Returns:
@@ -207,7 +207,7 @@ Result:
 * An Issues object that contains the list of issues with the status fixed for the requested date
 
 Requisites:
-* requires to include the journals. To load all the includes at once call to ```issues.reloadJournals()```
+* requires to include the journals. To load all the includes at once call to ```issues.reload_journals()```
 
 
 ## Stadistical operations
@@ -216,7 +216,7 @@ All these operations require that the journals are loaded.
 So before calling any of these operations call to
 
 ```
-issues.reloadJournals()
+issues.reload_journals()
 ```
 
 
@@ -238,7 +238,7 @@ issues = progress.issues(project, [
     progress.filter_date(DATE_UPDATED, 10, DATE_COMPARATION_LESS_THAN_DAYS_AGO)
 ])
 
-issues.reloadJournals(progress)
+issues.reload_journals(progress)
 date = datetime.strptime(dateStr, "%Y-%m-%d")
 issues = issues.snapshot(date)
 print(issues.stats())

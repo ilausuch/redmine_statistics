@@ -9,7 +9,8 @@ STATUS_RESOLVED = 3
 STATUS_FEEDBACK = 4
 STATUS_CLOSED = 5
 STATUS_REJECTED = 6
-STATUS_ALL = [ "new", "workable","in progress", "blocked", "resolved", "feedback", "closed", "rejected"]
+STATUS_ALL = ["new", "workable", "in progress", "blocked",
+              "resolved", "feedback", "closed", "rejected"]
 
 PRIORITY_IMMEDIATE = 7
 PRIORITY_URGENT = 6
