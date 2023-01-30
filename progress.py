@@ -49,17 +49,6 @@ def trunc_datetime(someDate):
     return someDate.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def prepare_list_for_json(arr):
-    l = []
-    for i in arr:
-        if isinstance(i, Issue) or isinstance(i, State):
-            l.append(i.get_data())
-        else:
-            l.append(i)
-
-    return l
-
-
 def status_to_text(value):
     if value == STATUS_NEW:
         return "new"
@@ -190,7 +179,11 @@ class Issues:
         return len(self.issues)
 
     def __str__(self):
-        return json.dumps(prepare_list_for_json(self.issues))
+        issues_str = '['
+        for issue in self.issues:
+            issues_str += f"'{issue}'"
+        issues_str += ']'
+        return issues_str
 
     def count(self):
         return self.data["total_count"]
@@ -304,8 +297,11 @@ class Issue:
     def get_data(self):
         data = self.data.copy()
         data.update(
-            {"state_changes": prepare_list_for_json(self.state_changes)})
+            {"state_changes": self.state_changes})
         return data
+
+    def __str__(self):
+        return self.data
 
     def create_on(self):
         return parse_datetime(self.data["created_on"])
@@ -530,8 +526,8 @@ class ProgressSQLiteCacheAdapter:
     def __init__(self):
         self.fields = {
             "issue": {
-                "type.id" : {"source_field": "tracker.id"},
-                "type.name" : {"source_field": "tracker.name"},
+                "type.id": {"source_field": "tracker.id"},
+                "type.name": {"source_field": "tracker.name"},
                 "start_date": {"source_type": "DATE"},
                 "due_date": {"source_type": "DATE"},
                 "created_on": {"source_type": "DATETIME"},
@@ -605,4 +601,3 @@ class ProgressSQLiteCacheAdapter:
                     raise f"Invalid source_type {source_type}"
 
         output_values[field_name] = value
-
