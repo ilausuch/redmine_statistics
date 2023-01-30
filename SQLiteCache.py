@@ -4,8 +4,8 @@ import sqlite3
 FIELDS_ISSUE = [{"name": "id", "type": "INTEGER"},
                 {"name": "project.id", "type": "INTEGER"},
                 {"name": "project.name", "type": "TEXT"},
-                {"name": "tracker.id", "type": "INTEGER"},
-                {"name": "tracker.name", "type": "TEXT"},
+                {"name": "type.id", "type": "INTEGER"},
+                {"name": "type.name", "type": "TEXT"},
                 {"name": "status.id", "type": "INTEGER"},
                 {"name": "status.name", "type": "TEXT"},
                 {"name": "priority.id", "type": "INTEGER"},
@@ -15,29 +15,29 @@ FIELDS_ISSUE = [{"name": "id", "type": "INTEGER"},
                 {"name": "assigned_to.id", "type": "INTEGER"},
                 {"name": "assigned_to.name", "type": "TEXT"},
                 {"name": "subject", "type": "TEXT"},
-                {"name": "start_date", "type": "INTEGER", "source_type": "DATE"},
-                {"name": "due_date", "type": "INTEGER", "source_type": "DATE"},
+                {"name": "start_date", "type": "INTEGER"},
+                {"name": "due_date", "type": "INTEGER"},
                 {"name": "estimated_hours", "type": "INTEGER"},
-                {"name": "created_on", "type": "INTEGER", "source_type": "DATETIME"},
-                {"name": "updated_on", "type": "INTEGER", "source_type": "DATETIME"},
-                {"name": "closed_on", "type": "INTEGER", "source_type": "DATETIME"}]
+                {"name": "created_on", "type": "INTEGER"},
+                {"name": "updated_on", "type": "INTEGER"},
+                {"name": "closed_on", "type": "INTEGER"}]
 
-FIELDS_STATE = [{"name": "journal_id", "type": "INTEGER", "source_field": "id"},
+FIELDS_STATE = [{"name": "journal_id", "type": "INTEGER"},
                 {"name": "project_id", "type": "INTEGER"},
                 {"name": "issue_id", "type": "INTEGER"},
                 {"name": "user.id", "type": "INTEGER"},
                 {"name": "user.name", "type": "TEXT"},
-                {"name": "created_on", "type": "INTEGER", "source_type": "DATETIME"},
+                {"name": "created_on", "type": "INTEGER"},
                 {"name": "property", "type": "TEXT"},
                 {"name": "name", "type": "TEXT"},
                 {"name": "old_value", "type": "TEXT"},
                 {"name": "new_value", "type": "TEXT"}]
 
-
 class SQLiteCache:
-    def __init__(self, file, drop_tables=False):
+    def __init__(self, file, providder_adapter, drop_tables=False):
         self.file = file
         self.connected = False
+        self.provider_adapter = providder_adapter
         self.drop_tables = drop_tables
 
     def setup(self):
@@ -144,15 +144,8 @@ class SQLiteCache:
         plain = []
 
         for field in fields:
-            value = plain_values[field["name"]]
-
-            if "source_type" in field and value is not None:
-                if field["source_type"] == "DATETIME":
-                    value = datetime_to_seconds(value)
-                elif field["source_type"] == "DATE":
-                    value = date_to_seconds(value)
-
-            plain.append(value)
+            plain.append(
+                self.provider_adapter.to_database(table, field, plain_values))
 
         self.insert(table, plain)
 

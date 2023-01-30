@@ -12,14 +12,14 @@ from datetime import timedelta
 project = "containers"
 
 progress = Progress(PROGRESS_URL, PROGRESS_KEY)
-cache = SQLiteCache("./progress.db", True)
+cache = SQLiteCache("./progress.db", ProgressSQLiteCacheAdapter(), True)
 cache.setup()
 
 issues = progress.issues(project, [
     progress.filter_tracker(TRACKER_ACTION),
     progress.filter_date(
         DATE_CREATED, 10, DATE_COMPARATION_LESS_THAN_DAYS_AGO),
-    progress.limit(500)
+    progress.limit(10)
 ])
 
 issues.reload_journals(progress)

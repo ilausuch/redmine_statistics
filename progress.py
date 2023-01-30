@@ -522,3 +522,52 @@ class Progress:
 
     def issue(self, id, includes):
         return Issue(self.query(f"/issues/{id}.json", includes))
+
+
+class ProgressSQLiteCacheAdapter:
+    def __init__(self):
+        self.fields = {
+            "issue": {
+                "type.id" : {"source_field": "tracker.id"},
+                "type.name" : {"source_field": "tracker.name"},
+                "start_date": {"source_type": "DATE"},
+                "due_date": {"source_type": "DATE"},
+                "created_on": {"source_type": "DATETIME"},
+                "updated_on": {"source_type": "DATETIME"},
+                "closed_on": {"source_type": "DATETIME"},
+            },
+            "state": {
+                "journal_id": {"source_field": "id"},
+                "created_on": {"source_type": "DATETIME"}
+            }   
+        }
+
+    def to_database(self, table, field, values):
+        if table in self.fields:
+            adaptation = self.fields[table]
+        else:
+            raise f"Table {table} is not defined"
+
+        field_name = field["name"]
+        value = values[field_name]
+
+        if field_name in adaptation:
+            field_adaptation = adaptation[field_name]
+
+            if "source_field" in field_adaptation:
+                source_field = field_adaptation["source_field"]
+                if source_field in values:
+                    value = values[source_field]
+                else:
+                    raise f"Source field {source_field} is not in values"
+
+            if "source_type" in field_adaptation:
+                source_type = field_adaptation["source_type"]
+                if source_type == "DATETIME":
+                    value = datetime_to_seconds(value)
+                elif source_type == "DATE":
+                    value = date_to_seconds(value)
+                else:
+                    raise f"Invalid source_type {source_type}"
+
+        return value
