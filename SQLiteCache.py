@@ -142,6 +142,7 @@ class SQLiteCache:
                 self.provider_adapter.to_database(table, field, plain_values))
 
         self.insert(table, plain)
+        self.con.commit()
 
     def insert(self, table, data):
         questionMarks = ['?'] * len(data)
