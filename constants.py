@@ -1,19 +1,23 @@
+from enum import Enum
+
 TRACKER_ACTION = 4
 TRACKER_COORDINATION = 6
 
-STATUS_NEW = 1
-STATUS_WORKABLE = 12
-STATUS_IN_PROGRESS = 2
-STATUS_BLOCKED = 15
-STATUS_RESOLVED = 3
-STATUS_FEEDBACK = 4
-STATUS_CLOSED = 5
-STATUS_REJECTED = 6
-STATUS_ALL = ["new", "workable", "in progress", "blocked",
-              "resolved", "feedback", "closed", "rejected"]
 
-PRIORITY_IMMEDIATE = 7
-PRIORITY_URGENT = 6
-PRIORITY_HIGH = 5
-PRIORITY_NORMAL = 4
-PRIORITY_LOW = 3
+class Status(Enum):
+    NEW = 1
+    WORKABLE = 12
+    IN_PROGRESS = 2
+    BLOCKED = 15
+    RESOLVED = 3
+    FEEDBACK = 4
+    CLOSED = 5
+    REJECTED = 6
+
+
+class Priority(Enum):
+    IMMEDIATE = 7
+    URGENT = 6
+    HIGH = 5
+    NORMAL = 4
+    LOW = 3

@@ -1,7 +1,6 @@
 import requests
 import json
-import sys
-from constants import *
+from constants import Status
 from datetime import datetime
 from statistics import median_high, variance, mean, stdev
 
@@ -47,44 +46,6 @@ EPOCH = datetime(1970, 1, 1, 0, 0, 0)
 
 def trunc_datetime(someDate):
     return someDate.replace(hour=0, minute=0, second=0, microsecond=0)
-
-
-def status_to_text(value):
-    if value == STATUS_NEW:
-        return "new"
-    elif value == STATUS_WORKABLE:
-        return "workable"
-    elif value == STATUS_IN_PROGRESS:
-        return "in progress"
-    elif value == STATUS_BLOCKED:
-        return "blocked"
-    elif value == STATUS_RESOLVED:
-        return "resolved"
-    elif value == STATUS_FEEDBACK:
-        return "feedback"
-    elif value == STATUS_CLOSED:
-        return "closed"
-    elif value == STATUS_REJECTED:
-        return "rejected"
-    else:
-        return "unknown"
-
-
-def priority_from_text(text):
-    if text == "immediate":
-        return PRIORITY_IMMEDIATE
-    elif text == "urgent":
-        return PRIORITY_URGENT
-    elif text == "high":
-        return PRIORITY_HIGH
-    elif text == "normal":
-        return PRIORITY_NORMAL
-    elif text == "low":
-        return PRIORITY_LOW
-    else:
-        sys.stderr.write(
-            "Invalid priority. Options immediate, urgent, high, normal, low\n")
-        exit(2)
 
 
 def _variance(values):
@@ -208,7 +169,7 @@ class Issues:
     def stats_status(self):
         stats = {}
 
-        for status in STATUS_ALL:
+        for status in Status:
             stats[status] = 0
             stats[f"{status}_ids"] = []
 
@@ -223,20 +184,20 @@ class Issues:
     def stats_aging(self):
         result = {}
 
-        for status in STATUS_ALL:
+        for status in Status:
             result[status] = {"count": 0, "sum": 0, "avg": 0, "values": []}
 
         for issue in self.issues:
             aging = issue.stats_aging()
 
-            for status in STATUS_ALL:
+            for status in Status:
                 if aging[status] != 0:
                     result[status]["sum"] = result[status]["sum"] + \
                         aging[status]
                     result[status]["count"] = result[status]["count"] + 1
                     result[status]["values"].append(aging[status])
 
-        for status in STATUS_ALL:
+        for status in Status:
             if result[status]["count"] > 0:
                 result[status]["avg"] = mean(result[status]["values"])
                 result[status]["med"] = median_high(result[status]["values"])
@@ -339,16 +300,16 @@ class Issue:
         res.journals = self.journals
         status = self.get_status_by_date(date)
 
-        res.data["status"] = {"id": status, "name": status_to_text(status)}
+        res.data["status"] = {"id": status, "name": status}
 
         return res
 
     def stats_aging(self):
         ret = {}
-        for status in STATUS_ALL:
+        for status in Status:
             ret[status] = 0
 
-        currentStatus = STATUS_NEW
+        currentStatus = Status.NEW
         startDate = self.create_on()
 
         for change in self.state_changes:
@@ -356,7 +317,7 @@ class Issue:
             endDate = change.create_on_date()
             elapsed = (endDate - startDate).seconds / 3600
 
-            status = status_to_text(currentStatus)
+            status = currentStatus
             if status not in ret:
                 ret[status] = elapsed
             else:
@@ -365,9 +326,9 @@ class Issue:
             currentStatus = newStaus
             startDate = endDate
 
-        if currentStatus != STATUS_CLOSED:
+        if currentStatus != Status.CLOSED:
             today = datetime.today()
-            status = status_to_text(currentStatus)
+            status = currentStatus
             elapsed = (today - startDate).seconds / 3600
             if status not in ret:
                 ret[status] = elapsed
@@ -474,8 +435,6 @@ class Progress:
 
         for filter in filters:
             query = query + "&" + filter
-
-        # sys.stderr.write(query)
 
         return self.rawQuery(query)
 
