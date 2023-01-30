@@ -1,7 +1,8 @@
 import requests
 import json
 import sys
-from constants import *
+from constants import STATUS_ALL, STATUS_BLOCKED, STATUS_CLOSED, STATUS_FEEDBACK, STATUS_IN_PROGRESS, STATUS_NEW, \
+    STATUS_REJECTED, STATUS_RESOLVED, STATUS_WORKABLE
 from datetime import datetime
 from statistics import median_high, variance, mean, stdev
 
@@ -528,8 +529,8 @@ class ProgressSQLiteCacheAdapter:
     def __init__(self):
         self.fields = {
             "issue": {
-                "type.id" : {"source_field": "tracker.id"},
-                "type.name" : {"source_field": "tracker.name"},
+                "type.id": {"source_field": "tracker.id"},
+                "type.name": {"source_field": "tracker.name"},
                 "start_date": {"source_type": "DATE"},
                 "due_date": {"source_type": "DATE"},
                 "created_on": {"source_type": "DATETIME"},
@@ -603,4 +604,3 @@ class ProgressSQLiteCacheAdapter:
                     raise f"Invalid source_type {source_type}"
 
         output_values[field_name] = value
-
