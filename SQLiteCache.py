@@ -50,14 +50,19 @@ class SQLiteCache:
             self.create_table("issue", FIELDS_ISSUE, ["id", "project.id"])
             self.create_table("state", FIELDS_STATE)
 
-    def store_issue(self, issue, include_states=True):
+    def store_issue(self, issue, include_states=True, auto_commit=True):
         self.store("issue", FIELDS_ISSUE, issue.plain_values)
         if include_states:
             for state in issue.state_changes:
-                self.store_state(state)
+                self.store_state(state, False)
 
-    def store_state(self, state):
+        if auto_commit:
+            self.commit()
+
+    def store_state(self, state, auto_commit=True):
         self.store("state", FIELDS_STATE, state.plain_values)
+        if auto_commit:
+            self.commit()
 
     def restore_issue(self, issue_id, project_id, include_states=True):
         res = self.exec(
@@ -134,7 +139,7 @@ class SQLiteCache:
 
         return cur
 
-    def store(self, table, fields, plain_values):
+    def store(self, table, fields, plain_values, auto_commit = True):
         plain = []
 
         for field in fields:
@@ -142,9 +147,14 @@ class SQLiteCache:
                 self.provider_adapter.to_database(table, field, plain_values))
 
         self.insert(table, plain)
-        self.con.commit()
+
+        if auto_commit:
+            self.commit()
 
     def insert(self, table, data):
         questionMarks = ['?'] * len(data)
         self.exec(
             f"INSERT INTO {table} VALUES({','.join(questionMarks)})", data)
+
+    def commit(self):
+        self.con.commit()

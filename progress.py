@@ -187,7 +187,7 @@ class Issues:
         return self.issues
 
     def __len__(self):
-        return self.issues.count()
+        return len(self.issues)
 
     def __str__(self):
         return json.dumps(prepare_list_for_json(self.issues))
@@ -256,7 +256,9 @@ class Issues:
 
     def store(self, cache):
         for issue in self.issues:
-            issue.store(cache)
+            issue.store(cache, False)
+
+        cache.commit()
 
     def restore(self, cache):
         cache.restore_all_issues()
@@ -384,8 +386,8 @@ class Issue:
     def status_text(self):
         return self.data["status"]["name"]
 
-    def store(self, cache):
-        cache.store_issue(self)
+    def store(self, cache, auto_commit=True):
+        cache.store_issue(self, auto_commit)
 
     def _process_journals(self):
         if self.journals != None:
